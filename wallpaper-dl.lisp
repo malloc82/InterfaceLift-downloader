@@ -1,13 +1,14 @@
-(ql:quickload :drakma)
-(ql:quickload :cl-ppcre)
-(ql:quickload :cl-html-parse)
+;; (ql:quickload :drakma)
+;; (ql:quickload :cl-ppcre)
+;; (ql:quickload :cl-html-parse)
 
-(defpackage :wallpaper-dl (:use :cl :drakma :cl-ppcre :html-parse))
-(in-package :wallpaper-dl)
+;; (defpackage #:wallpaper-dl (:use #:cl #:drakma #:cl-ppcre #:html-parse))
+(in-package #:wallpaper-dl)
 
 (defvar *base-url*  "http://interfacelift.com/wallpaper/downloads/date/widescreen/")
 (defvar *site* "http://interfacelift.com")
-(defvar *last-record* ".last")
+;; (defvar *last-record* "~/.")
+
 
 (defmacro print-asap (control-string &rest args)
   `(progn
@@ -31,6 +32,8 @@
     (when newline
       (print-asap "~%"))))
 
+(defmacro get-image-id (imagename)
+  `(first (cl-ppcre:split "_" ,imagename)))
 
 (defun get-all-images-with-resolution (&key
                                        (resolution "1440x900")
@@ -38,8 +41,9 @@
                                        (download-dir resolution)
                                        (auto nil)
                                        (pages-to-download nil)
-                                       (last-download nil)
-                                       (record nil))
+                                       (last-download-id nil)
+                                       ;; (record nil)
+                                       )
   (when (and url
              (or (null pages-to-download)
                  (> pages-to-download 0)))
@@ -51,28 +55,33 @@
              (next-page-html (first (cl-ppcre:all-matches-as-strings
                                      "<a class=\"selector\".+next page ></a>" html-string))))
         (when image-links
-          (loop for link in image-links do
-               (let ((image-name (file-namestring link)))
-                 (if (string= last-download image-name)
+          (loop
+             :for link :in image-links
+             ;; :with terminate = nil
+             :do
+             (let ((image-name (file-namestring link)))
+               (if (string= last-download-id (get-image-id image-name))
+                   (progn
                      (setq next-page-html nil)
-                     (let ((filename (concatenate 'string download-dir image-name))
-                           (link (concatenate 'string *site* link)))
-                       
-                       (with-open-file (file-stream filename
-                                                    :direction :output
-                                                    :if-does-not-exist :create
-                                                    :if-exists :supersede
-                                                    :element-type '(unsigned-byte 8))
-                         (let ((data (http-request link :user-agent "Mozilla")))
+                     (return nil))
+                   (let ((filename (concatenate 'string download-dir image-name))
+                         (link (concatenate 'string *site* link)))
+                     
+                     (with-open-file (file-stream filename
+                                                  :direction :output
+                                                  :if-does-not-exist :create
+                                                  :if-exists :supersede
+                                                  :element-type '(unsigned-byte 8))
+                       (let ((data (http-request link :user-agent "Mozilla")))
                          (if (write-sequence  data file-stream)
                              (progn
                                (print-asap "Download successful: ~a" filename)
-                               (when record
-                                   (with-open-file (save (concatenate 'string download-dir *last-record*)
-                                                         :direction :output
-                                                         :if-does-not-exist :create
-                                                         :if-exists :supersede)
-                                     (write-sequence image-name save)))
+                               ;; (when record
+                               ;;     (with-open-file (save (concatenate 'string download-dir *last-record*)
+                               ;;                           :direction :output
+                               ;;                           :if-does-not-exist :create
+                               ;;                           :if-exists :supersede)
+                               ;;       (write-sequence image-name save)))
                                (delay 3 :message-after "done")) ;; 
                              (progn
                                (print-asap "Something went wrong ... link: ~a~%" link)
@@ -84,7 +93,7 @@
                                                (get-href (html-parse:parse-html next-page-html)))))
               (print-asap "Next page: ~a~%" next-page-link)
               (when (or auto (y-or-n-p "Continue?"))
-                (delay 5 :message-after "OK")
+                (when auto (delay 5 :message-after "OK"))
                 (print-asap "------------------------------------------------------~%")
                 (when pages-to-download
                   (decf pages-to-download)
@@ -93,26 +102,27 @@
                       (print-asap "All pages are downloaded.~%")))
                 (get-all-images-with-resolution :resolution resolution
                                                 :url next-page-link
-                                                :last-download last-download
+                                                :last-download-id last-download-id
                                                 :download-dir download-dir
                                                 :auto auto
                                                 :pages-to-download pages-to-download)))))))))
 
-(defun download-main (&key
-                      (resolutions nil)
-                      (pages 1))
+(defun download (&key (resolutions nil) (directory "temp") (pages 1) (last-download-id nil))
   (unless resolutions
     (setq resolutions
           (prompt-read "Enter wallpaer resolutions (use ',' to seperate different resolutions)")))
   (mapcar #'(lambda (resolution)
-              (let ((resolution-path (make-pathname :directory `(:relative "test" ,resolution)))
+              (let ((resolution-path (make-pathname :directory `(:relative ,directory ,resolution)))
                     (page-url (concatenate 'string *base-url* resolution "/")))
                 (ensure-directories-exist resolution-path)
                 (print-asap "Start downloading resolution ~a from ~a~%" resolution page-url)
+                (when (equal pages 'all)
+                  (setq pages nil))
                 (get-all-images-with-resolution :resolution resolution
                                                 :url page-url
                                                 :download-dir (directory-namestring resolution-path)
                                                 :auto t
+                                                :last-download-id last-download-id
                                                 :pages-to-download pages)))
           (cl-ppcre:split "\\s*,\\s*" resolutions)))
 

@@ -1,14 +1,8 @@
-;; (ql:quickload :drakma)
-;; (ql:quickload :cl-ppcre)
-;; (ql:quickload :cl-html-parse)
-
-;; (defpackage #:wallpaper-dl (:use #:cl #:drakma #:cl-ppcre #:html-parse))
 (in-package #:wallpaper-dl)
 
 (defvar *base-url*  "http://interfacelift.com/wallpaper/downloads/date/widescreen/")
 (defvar *site* "http://interfacelift.com")
 ;; (defvar *last-record* "~/.")
-
 
 (defmacro print-asap (control-string &rest args)
   `(progn

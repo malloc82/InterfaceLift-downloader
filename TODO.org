@@ -1,0 +1,4 @@
+
+* TODO [0/3]
+  - [ ] Need to add command line argument processing
+  - [ ] Auto detect stop point

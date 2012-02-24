@@ -41,8 +41,7 @@
   (when (and url
              (or (null pages-to-download)
                  (> pages-to-download 0)))
-    (macrolet ((get-href (html-entry)
-                 `(getf (cdr (first (first ,html-entry))) :href)))
+    (macrolet ((get-href (html-entry) `(getf (cdr (first (first ,html-entry))) :href)))
       (let* ((html-string (http-request url :user-agent "Mozilla"))
              (image-links (cl-ppcre:all-matches-as-strings
                            (format nil "[^=<>\"]+~a.jpg" resolution) html-string))
@@ -52,34 +51,33 @@
           (loop
              :for link :in image-links
              ;; :with terminate = nil
-             :do
-             (let ((image-name (file-namestring link)))
-               (if (string= last-download-id (get-image-id image-name))
-                   (progn
-                     (setq next-page-html nil)
-                     (return nil))
-                   (let ((filename (concatenate 'string download-dir image-name))
-                         (link (concatenate 'string *site* link)))
-                     
-                     (with-open-file (file-stream filename
-                                                  :direction :output
-                                                  :if-does-not-exist :create
-                                                  :if-exists :supersede
-                                                  :element-type '(unsigned-byte 8))
-                       (let ((data (http-request link :user-agent "Mozilla")))
-                         (if (write-sequence  data file-stream)
-                             (progn
-                               (print-asap "Download successful: ~a" filename)
-                               ;; (when record
-                               ;;     (with-open-file (save (concatenate 'string download-dir *last-record*)
-                               ;;                           :direction :output
-                               ;;                           :if-does-not-exist :create
-                               ;;                           :if-exists :supersede)
-                               ;;       (write-sequence image-name save)))
-                               (delay 3 :message-after "done")) ;; 
-                             (progn
-                               (print-asap "Something went wrong ... link: ~a~%" link)
-                               (print-asap "                         length: ~d~%" (length data))))))))))
+             :do (let ((image-name (file-namestring link)))
+                   (if (string= last-download-id (get-image-id image-name))
+                       (progn
+                         (setq next-page-html nil)
+                         (return nil))
+                       (let ((filename (concatenate 'string download-dir image-name))
+                             (link (concatenate 'string *site* link)))
+                         
+                         (with-open-file (file-stream filename
+                                                      :direction :output
+                                                      :if-does-not-exist :create
+                                                      :if-exists :supersede
+                                                      :element-type '(unsigned-byte 8))
+                           (let ((data (http-request link :user-agent "Mozilla")))
+                             (if (write-sequence  data file-stream)
+                                 (progn
+                                   (print-asap "Download successful: ~a" filename)
+                                   ;; (when record
+                                   ;;     (with-open-file (save (concatenate 'string download-dir *last-record*)
+                                   ;;                           :direction :output
+                                   ;;                           :if-does-not-exist :create
+                                   ;;                           :if-exists :supersede)
+                                   ;;       (write-sequence image-name save)))
+                                   (delay 3 :message-after "done")) ;; 
+                                 (progn
+                                   (print-asap "Something went wrong ... link: ~a~%" link)
+                                   (print-asap "                         length: ~d~%" (length data))))))))))
           (print-asap "~%Finished page ~a ~%~%" url)
           (when next-page-html
             (let ((next-page-link (concatenate 'string
@@ -105,13 +103,21 @@
   (unless resolutions
     (setq resolutions
           (prompt-read "Enter wallpaer resolutions (use ',' to seperate different resolutions)")))
+  (typecase pages
+    (symbol (if (equal pages 'all)
+                (setq pages nil)
+                (progn
+                  (format t "Unrecognized symbol ~a for pages~%" pages)
+                  (return-from download))))
+    (integer t)
+    (t (progn
+         (format t "Wrong type for pages~%")
+         (return-from download))))
   (mapcar #'(lambda (resolution)
               (let ((resolution-path (make-pathname :directory `(:relative ,directory ,resolution)))
                     (page-url (concatenate 'string *base-url* resolution "/")))
                 (ensure-directories-exist resolution-path)
                 (print-asap "Start downloading resolution ~a from ~a~%" resolution page-url)
-                (when (equal pages 'all)
-                  (setq pages nil))
                 (get-all-images-with-resolution :resolution resolution
                                                 :url page-url
                                                 :download-dir (directory-namestring resolution-path)
@@ -119,4 +125,3 @@
                                                 :last-download-id last-download-id
                                                 :pages-to-download pages)))
           (cl-ppcre:split "\\s*,\\s*" resolutions)))
-

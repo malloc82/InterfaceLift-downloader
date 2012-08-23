@@ -2,6 +2,7 @@
 
 (defvar *base-url*  "http://interfacelift.com/wallpaper/downloads/date/widescreen/")
 (defvar *site* "http://interfacelift.com")
+(defvar *last-visit* nil)
 ;; (defvar *last-record* "~/.")
 
 (defmacro print-asap (control-string &rest args)
@@ -57,9 +58,7 @@
 (defun download-image (link dir)
   (destructuring-bind (name type)
       (cl-ppcre:split "\\." (file-namestring link))
-    (let* ((filename  (make-pathname :directory `(:relative ,dir ,(get-resolution link))
-                                     :name name
-                                     :type type)))
+    (let* ((filename  (make-pathname :directory `(:relative ,dir) :name name :type type)))
       (with-open-file (file-stream (namestring (ensure-directories-exist filename))
                                    :direction :output
                                    :if-does-not-exist :create
@@ -88,6 +87,7 @@
     filename))
 
 (defun search-image (image-id start-url &key (end nil))
+  (print-asap "Searching page : ~a~%" start-url)
   (multiple-value-bind (image-links next-page prev-page)
       (extract-links start-url)
     (loop
@@ -105,7 +105,12 @@
        :finally (return
                   (if next-page (search-image image-id next-page) (values nil nil nil))))))
 
+(defun resume ()
+  (when *last-visit*
+    (apply #'batch-download *last-visit*)))
+
 (defun batch-download (page-url dir &key (first nil) (last nil))
+  (setq *last-visit* (list page-url dir :first first :last last))
   (multiple-value-bind (image-links next-page)
       (if first
           (search-image first page-url)
@@ -115,9 +120,7 @@
        :do  (if (and last (string< (get-image-id link) last))
                 (return nil)
                 (download-image link dir))
-       :finally (when (when next-page (batch-download next-page dir
-                                                      :first first
-                                                      :last last))))))
+       :finally (when next-page (batch-download next-page dir :last last)))))
 
 (defun download (&key (resolutions nil) (directory "wallpaper_download") (first nil) (last nil))
   (unless resolutions

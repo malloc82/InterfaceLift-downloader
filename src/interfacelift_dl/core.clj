@@ -15,12 +15,15 @@
 (def ^String res_3360x2100  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/3360x2100/")
 (def ^String res_2880x1800  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/2880x1800/")
 (def ^String res_1680x1050  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/1680x1050/")
+;; DELL U2417H setting
+(def ^String res_1080x1920  "https://interfacelift.com/wallpaper/downloads/date/wide_9:16/1080x1920/")
+
 
 (def ^String base-url  "https://interfacelift.com")
 (def ^String query-url "https://interfacelift.com/wallpaper/downloads/date" )
 
-(def response (client/get test-url {:headers header}))
-(def body (hickory/as-hickory (hickory/parse (:body response))))
+;; (def response (client/get test-url {:headers header}))
+;; (def body (hickory/as-hickory (hickory/parse (:body response))))
 
 (def dl-folder "resources")
 
@@ -43,7 +46,7 @@
               #(sel/select (sel/attr "href") %))
         (sel/select (sel/class "download") body)))
 
-(defn write-image [^String f img-array]
+(defn write-image [^String f ^bytes img-array]
   (println "--------> " (class img-array))
   (with-open [w (java.io.BufferedOutputStream. (java.io.FileOutputStream. f))]
     (.write w img-array)))
@@ -65,10 +68,11 @@
 (defn getResolution
   "Get resolution based on page url"
   [^String page-url]
-  (let [ext (last (clojure.string/split page-url #"[.]"))]
-    (if (#{"html"} ext)
-      (first (take-last 2 (clojure.string/split page-url #"[/]")))
-      (first (clojure.string/split (.getName (java.io.File. page-url)) #"_")))))
+  ;; (let [ext (last (clojure.string/split page-url #"[.]"))]
+  ;;   (if (#{"html"} ext)
+  ;;     (first (take-last 2 (clojure.string/split page-url #"[/]")))
+  ;;     (first (clojure.string/split (.getName (java.io.File. page-url)) #"_"))))
+  (re-find #"[0-9]+x[0-9]+" res_1080x1920))
 
 (defn bulk-download-page [page-url & {:keys [delay  debug]
                                  :or   {delay  10000
@@ -76,13 +80,18 @@
   (let [resp     (client/get page-url {:headers header})
         body     (hickory/as-hickory (hickory/parse (:body resp)))
         img-list (getImageLinks body)
+        ;; img-list (->> (client/get res_1920x1080 {:header header})
+        ;;               :body
+        ;;               hickory/parse
+        ;;               hickory/as-hickory
+        ;;               getImageLinks)
         res      (getResolution page-url)
         folder   (let [base "resources/"]
                    (if (or (empty? res) (nil? res))
                      base
                      (str base res)))]
     ;; (pprint img-list)
-    (.mkdir (java.io.File. folder))
+    (.mkdirs (java.io.File. folder))
     (doseq [link img-list]
       (let [f (java.io.File. ^String link)
             im_name ^String (.getName f)
@@ -110,3 +119,4 @@
 
 ;; (download-multi-pages res_1920x1080 (range 1 10))
 ;; (download-multi-pages res_3360x2100 (range 1 10))
+

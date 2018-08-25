@@ -3,7 +3,9 @@
         [clojure.pprint :only [pprint]])
   (:require [clj-http.client :as client]
             [hickory.core :as hickory]
-            [hickory.select :as sel]))
+            [hickory.select :as sel]
+            [clojure.tools.cli :refer [parse-opts]])
+  (:import [java.nio.file Paths]))
 
 (set! *warn-on-reflection* true)
 
@@ -72,11 +74,13 @@
   ;;   (if (#{"html"} ext)
   ;;     (first (take-last 2 (clojure.string/split page-url #"[/]")))
   ;;     (first (clojure.string/split (.getName (java.io.File. page-url)) #"_"))))
-  (re-find #"[0-9]+x[0-9]+" res_1080x1920))
+  (or (re-find #"[0-9]+x[0-9]+" res_1080x1920) ""))
 
-(defn bulk-download-page [page-url & {:keys [delay  debug]
-                                 :or   {delay  10000
-                                        debug  false}}]
+(defn bulk-download-page [page-url & {:keys [delay debug folder]
+                                      :or   {delay  10000
+                                             debug  false
+                                             folder "resources"}}]
+
   (let [resp     (client/get page-url {:headers header})
         body     (hickory/as-hickory (hickory/parse (:body resp)))
         img-list (getImageLinks body)
@@ -86,10 +90,14 @@
         ;;               hickory/as-hickory
         ;;               getImageLinks)
         res      (getResolution page-url)
-        folder   (let [base "resources/"]
-                   (if (or (empty? res) (nil? res))
-                     base
-                     (str base res)))]
+        folder   (-> (Paths/get folder (into-array [res]))
+                     .toString) ;; varargs java methods need an array containing
+                                                       ;; all remaining args as their final argument.
+                 ;; (let [base "resources/"]
+                 ;;   (if (or (empty? res) (nil? res))
+                 ;;     base
+                 ;;     (str base res)))
+        ]
     ;; (pprint img-list)
     (.mkdirs (java.io.File. folder))
     (doseq [link img-list]
@@ -111,12 +119,34 @@
 (defn download-multi-pages
   "base-url should be a url without index.html
    page-range should be a list of integers"
-  [base-url page-list]
+  [base-url & {:keys [page-list folder]
+               :or   {page-list '(1)
+                      folder "resources/"}}]
   (doseq [page page-list]
     (let [page-url (format "%s/index%d.html" (trim-url base-url) page)]
       (println "Download page" page-url)
-      (bulk-download-page page-url))))
+      (bulk-download-page page-url :folder folder)))
+)
+;; (download-multi-pages res_1920x1080 "./resources" :page-list (range 1 10))
+;; (download-multi-pages res_3360x2100 "./resources" :page-list (range 1 10))
 
-;; (download-multi-pages res_1920x1080 (range 1 10))
-;; (download-multi-pages res_3360x2100 (range 1 10))
+(def cli-options
+  [[nil "--res RES" "Resolution"
+    :default "1920x1080"
+    :parse-fn str]
+   ["-d" "--folder FOLDER" "Download folder"
+    :default "resources"
+    :parse-fn str]
+   ["-r" "--range RANGE" "Pages to download"
+    :default '(1)
+    :parse-fn #(eval (read-string %))]
+   ["-v" nil "test arg"
+    :id :tt
+    :default true]
+   [nil "--test" "test arg 2"
+    :default 1]])
 
+(defn validate-args [args])
+
+(defn -main [& args]
+  )

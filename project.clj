@@ -9,4 +9,6 @@
                  [org.clojure/tools.cli "0.3.7"]]
   ;; :global-vars {*warn-on-reflection* true}
   :jvm-opts ^:replace []
-  :repl-options {:port 7000})
+  :repl-options {:port 7000}
+  :aot [interfacelift-dl.core]
+  :main interfacelift-dl.core)

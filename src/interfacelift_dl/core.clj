@@ -5,7 +5,8 @@
             [hickory.core :as hickory]
             [hickory.select :as sel]
             [clojure.tools.cli :refer [parse-opts]])
-  (:import [java.nio.file Paths]))
+  (:import [java.nio.file Paths])
+  (:gen-class))
 
 (set! *warn-on-reflection* true)
 
@@ -20,6 +21,11 @@
 ;; DELL U2417H setting
 (def ^String res_1080x1920  "https://interfacelift.com/wallpaper/downloads/date/wide_9:16/1080x1920/")
 
+(def res {"1920x1080"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:9/1920x1080/"
+          "3360x2100"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/3360x2100/"
+          "2880x1800"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/2880x1800/"
+          "1680x1050"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/1680x1050/"
+          "1080x1920"  "https://interfacelift.com/wallpaper/downloads/date/wide_9:16/1080x1920/"})
 
 (def ^String base-url  "https://interfacelift.com")
 (def ^String query-url "https://interfacelift.com/wallpaper/downloads/date" )
@@ -91,7 +97,7 @@
         ;;               getImageLinks)
         res      (getResolution page-url)
         folder   (-> (Paths/get folder (into-array [res]))
-                     .toString) ;; varargs java methods need an array containing
+                     str) ;; varargs java methods need an array containing
                                                        ;; all remaining args as their final argument.
                  ;; (let [base "resources/"]
                  ;;   (if (or (empty? res) (nil? res))
@@ -125,28 +131,62 @@
   (doseq [page page-list]
     (let [page-url (format "%s/index%d.html" (trim-url base-url) page)]
       (println "Download page" page-url)
-      (bulk-download-page page-url :folder folder)))
-)
+      (bulk-download-page page-url :folder folder))))
 ;; (download-multi-pages res_1920x1080 "./resources" :page-list (range 1 10))
 ;; (download-multi-pages res_3360x2100 "./resources" :page-list (range 1 10))
 
 (def cli-options
   [[nil "--res RES" "Resolution"
+    :id :res
     :default "1920x1080"
     :parse-fn str]
    ["-d" "--folder FOLDER" "Download folder"
+    :id :folder
     :default "resources"
     :parse-fn str]
    ["-r" "--range RANGE" "Pages to download"
+    :id :range
     :default '(1)
     :parse-fn #(eval (read-string %))]
-   ["-v" nil "test arg"
-    :id :tt
-    :default true]
-   [nil "--test" "test arg 2"
-    :default 1]])
+   ["-h" "--help" "Print help page"
+    :id :help
+    :default false]])
 
-(defn validate-args [args])
+(defn usage [options-summary]
+  (->> ["This program downloads wallpapers with desired resolution from interfacelift.com."
+        ""
+        "Usage: IFL-DL [options]"
+        ""
+        "Options:"
+        options-summary
+        ""]
+       (clojure.string/join \newline)))
+
+(defn error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (clojure.string/join \newline errors)))
+
+(defn validate-args
+  "Validate command line arguments. Either return a map indicating the program
+  should exit (with a error message, and optional ok status), or a map
+  indicating the action the program should take and the options provided."
+  [args]
+  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
+    (cond
+      (:help options) ; help => exit OK with usage summary
+      {:exit-message (usage summary) :ok? true}
+      errors ; errors => exit with description of errors
+      {:exit-message (error-msg errors)}
+      :else
+      {:options options} )))
+
+(defn exit [status msg]
+  (println msg)
+  (System/exit status))
 
 (defn -main [& args]
-  )
+  (pprint args)
+  (let [{:keys [options exit-message ok?]} (validate-args args)]
+    (if exit-message
+      (exit (if ok? 0 1) exit-message)
+      (download-multi-pages (get res (:res options)) :folder (:folder options) :page-list (:range options)))))

@@ -1,14 +1,18 @@
-# interfacelift-dl
+## interfacelift-dl
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure library designed to download wallpapers from interfacelift.com
 
-## Usage
+<!-- Usage: IFL-DL [options] -->
 
-FIXME
-
-## License
-
-Copyright © 2016 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+### Options:
+```
+      --res RES        1920x1080  Resolution
+  -d, --folder FOLDER  resources  Download folder
+  -r, --range RANGE    (1)        Pages to download
+  -h, --help                      Print help page
+```
+### Example:
+```
+  clj -M:main --res 2880x1800 -r "(range 10)"
+  clj -M:main --res 2880x1800 -r "'(1 2 3)"
+```

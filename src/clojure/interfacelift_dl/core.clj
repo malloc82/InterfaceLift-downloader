@@ -80,14 +80,14 @@
   ;;   (if (#{"html"} ext)
   ;;     (first (take-last 2 (clojure.string/split page-url #"[/]")))
   ;;     (first (clojure.string/split (.getName (java.io.File. page-url)) #"_"))))
-  (or (re-find #"[0-9]+x[0-9]+" res_1080x1920) ""))
+  (or (re-find #"[0-9]+x[0-9]+" page-url) "Unknown"))
 
 (defn bulk-download-page [page-url & {:keys [delay debug folder]
                                       :or   {delay  10000
                                              debug  false
                                              folder "resources"}}]
 
-  (let [resp     (client/get page-url {:headers header})
+  (let [resp     (client/get page-url {:headers header :insecure? true})
         body     (hickory/as-hickory (hickory/parse (:body resp)))
         img-list (getImageLinks body)
         ;; img-list (->> (client/get res_1920x1080 {:header header})
@@ -117,7 +117,7 @@
         (print "Downloading" img-src "...") (flush)
         (if (.exists target-path)
           (do (println " File exists, skipping.") (flush))
-          (let [dl-resp (client/get img-src {:header header :as :stream :cookies (:cookies resp)})]
+          (let [dl-resp (client/get img-src {:header header :as :stream :cookies (:cookies resp) :insecure? true})]
             (clojure.java.io/copy (:body dl-resp) target-path)
             (println " Done. Saved to: " (str folder "/" im_name)) (flush)
             (Thread/sleep delay)))))))
@@ -159,7 +159,9 @@
         ""
         "Options:"
         options-summary
-        ""]
+        "\nExample:"
+        "        clj -M:main --res 2880x1800 -r \"(range 10)\""
+        "        clj -M:main --res 2880x1800 -r \"'(1 2 3)\""]
        (clojure.string/join \newline)))
 
 (defn error-msg [errors]

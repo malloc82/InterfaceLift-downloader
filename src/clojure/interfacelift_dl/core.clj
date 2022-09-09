@@ -22,10 +22,12 @@
 (def ^String res_1080x1920  "https://interfacelift.com/wallpaper/downloads/date/wide_9:16/1080x1920/")
 
 (def res {"1920x1080"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:9/1920x1080/"
+          "4K-UHDTV"   "https://interfacelift.com/wallpaper/downloads/date/wide_16:9/3840x2160/"
           "3360x2100"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/3360x2100/"
           "2880x1800"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/2880x1800/"
           "1680x1050"  "https://interfacelift.com/wallpaper/downloads/date/wide_16:10/1680x1050/"
-          "1080x1920"  "https://interfacelift.com/wallpaper/downloads/date/wide_9:16/1080x1920/"})
+          "1080x1920"  "https://interfacelift.com/wallpaper/downloads/date/wide_9:16/1080x1920/"
+          ,})
 
 (def ^String base-url  "https://interfacelift.com")
 (def ^String query-url "https://interfacelift.com/wallpaper/downloads/date" )
@@ -144,7 +146,7 @@
     :id :folder
     :default "resources"
     :parse-fn str]
-   ["-r" "--range RANGE" "Pages to download"
+   ["-r" "--range RANGE" "Pages to download, expressed in s-expression with \"\" around, e.g. \"(range 10)\" or \"'(1 2 3)\""
     :id :range
     :default '(1)
     :parse-fn #(eval (read-string %))]

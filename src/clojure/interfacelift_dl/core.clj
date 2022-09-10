@@ -152,6 +152,9 @@
     :parse-fn #(eval (read-string %))]
    ["-h" "--help" "Print help page"
     :id :help
+    :default false]
+   [nil "--show-res" "Show supported resolutions"
+    :id :show-res
     :default false]])
 
 (defn usage [options-summary]
@@ -162,9 +165,16 @@
         "Options:"
         options-summary
         "\nExample:"
+        "        clj -M:main --show-res"
         "        clj -M:main --res 2880x1800 -r \"(range 10)\""
-        "        clj -M:main --res 2880x1800 -r \"'(1 2 3)\""]
+        "        clj -M:main --res 2880x1800 -r \"'(1 2 3)\""
+        ,]
        (clojure.string/join \newline)))
+
+(defn show-res []
+  (-> ["Supported resolutions:\n"]
+   (into (map #(str "   " %1 "\n") (keys res)))
+   (clojure.string/join)))
 
 (defn error-msg [errors]
   (str "The following errors occurred while parsing your command:\n\n"
@@ -179,8 +189,13 @@
     (cond
       (:help options) ; help => exit OK with usage summary
       {:exit-message (usage summary) :ok? true}
+
+      (:show-res options)
+      {:exit-message (show-res) :ok? true}
+
       errors ; errors => exit with description of errors
       {:exit-message (error-msg errors)}
+
       :else
       {:options options} )))
 
